@@ -9,6 +9,7 @@ Usage: backup.sh <command>
                   this command can run without the target volume present
                   should be added as a regular (daily) cronjob
                   runtime measured in minutes
+		  
          backup - process the collected delta files to the target directory
                   actual backup, processing the collected delta files
                   multiple targets can be used and the delta files kept
