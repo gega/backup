@@ -230,7 +230,7 @@ TARGET=""
           # too many deletion, regenerate the toc
           find $src | gzip >$STORAGE/$sha/toc.tmp.gz
         fi
-        mv $STORAGE/$sha/toc.tmp.gz $STORAGE/$sha/toc.gz
+        [[ -f $STORAGE/$sha/toc.tmp.gz ]] && mv $STORAGE/$sha/toc.tmp.gz $STORAGE/$sha/toc.gz
         mv $STORAGE/$sha/checkpoint.tmp $STORAGE/$sha/checkpoint
         # remove consumed deltas for this source
         TMP=$(mktemp)
@@ -242,7 +242,7 @@ TARGET=""
           ((nt+=1))
         done
         # deltas will appear as many times as many times they were consumed by targets
-        cat $TMP | sort | uniq -c | awk '{if($1>='$nt') print "'$STORAGE/$sha'/" $2}'|xargs rm
+        cat $TMP | sort | uniq -c | awk '{if($1>='$nt') print "'$STORAGE/$sha'/" $2}'|xargs rm -f
         rm -f $TMP
       else
         logger -t $TAG "cron init for '$src'"
