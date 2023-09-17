@@ -74,6 +74,7 @@ while IFS= read -r line; do
   else
     EXCLUDESFIND+=("-not" "-path" "$line")
     EXCLUDESRSYNC+=("--exclude" "$line")
+    EXCLUDESTEXT+=("$line")
   fi
 done < $CONFIG
 TARGET=""
@@ -128,20 +129,26 @@ TARGET=""
           #   cp -alT $src/ $dst/					# 1174s
           #   pushd $src; pax -rwlpe . $dst; popd			# 2610s
           #   rsync -av --link-dest="$src" $src/ $dst			# 1370s
-          cp -alT $TARGET/$sha/latest/ $TARGET/$sha/${backupname}.tmp/
+          cp -alT $(realpath $TARGET/$sha/latest/) $TARGET/$sha/${backupname}.tmp/
           # 2. add missing files
-          echo "Files to add (" >>$TARGET/$sha/log/$backupname.log
+          echo $(date)" Files to add (" >>$TARGET/$sha/log/$backupname.log
           srcdir=$(dirname $src)
           TMP=$(mktemp)
+          # method #1 rsync - works but slow
+          #find $STORAGE/$sha/ -name "[1-9]*_[ad][de][dl]" -printf "%f\n" | sort -n | awk -F_ '{if($1>'$checkpoint') print $0}' | tee $TMP | \
+          #  grep add$ | tr '\n' '\0' | sort -mu --files0-from=- | sed -e "s#^${srcdir}/##g" | \
+          #  rsync -v --ignore-missing-args --no-compress -W --files-from=- $srcdir $TARGET/$sha/${backupname}.tmp/ >>$TARGET/$sha/log/$backupname.log 2>&1
+          # method #2 tar - works, benchmarking in progress
           find $STORAGE/$sha/ -name "[1-9]*_[ad][de][dl]" -printf "%f\n" | sort -n | awk -F_ '{if($1>'$checkpoint') print $0}' | tee $TMP | \
             grep add$ | tr '\n' '\0' | sort -mu --files0-from=- | sed -e "s#^${srcdir}/##g" | \
-            rsync -W --no-compress --files-from=- $srcdir $TARGET/$sha/${backupname}.tmp/ >>$TARGET/$sha/log/$backupname.log 2>&1
-          echo "Files to add )" >>$TARGET/$sha/log/$backupname.log
+            tar --ignore-failed-read -C "$srcdir" -T - -cf - | tar -C $TARGET/$sha/${backupname}.tmp/ -xvf - >>$TARGET/$sha/log/$backupname.log 2>&1
+          # cat add | sed 's#^/home/##g' | tar --ignore-failed-read -C /home/gega/.. -T - -cf - | tar -tf -
+          echo $(date)" Files to add )" >>$TARGET/$sha/log/$backupname.log
           # 3. remove deleted files
-          echo "Files to delete (" >>$TARGET/$sha/log/$backupname.log
-          cat $TMP | grep del$ | tr '\n' '\0' | sort -mu --files0-from=- | sed -e "s#^${srcdir}/##g" | \
-            sed -e "s#^#$TARGET/$sha/${backupname}.tmp/#g"|xargs rm -f
-          echo "Files to delete )" >>$TARGET/$sha/log/$backupname.log
+          echo $(date)" Files to delete (" >>$TARGET/$sha/log/$backupname.log
+          cat $TMP | grep "del$" | tr '\n' '\0' | sort -mu --files0-from=- | sed -e "s#^${srcdir}/##g" | \
+            tee -a $TARGET/$sha/log/$backupname.log | sed -e "s#^#$TARGET/$sha/${backupname}.tmp/#g"|xargs rm -f
+          echo $(date)" Files to delete )" >>$TARGET/$sha/log/$backupname.log
           rm -f $TMP
           popd
           ok=0
@@ -164,9 +171,9 @@ TARGET=""
       if [ $ok -ge 0 ]; then
         logger -t $TAG "backup $backupname of $src to $TARGET finished exit code "$ok
         if [ $ok -eq 0 ]; then
-          echo "backup ok!" >>$TARGET/$sha/log/$backupname.log
+          echo $(date)" backup ok!" >>$TARGET/$sha/log/$backupname.log
         elif [ $ok -gt 0 ]; then
-          echo "backup failed!" >>$TARGET/$sha/log/$backupname.log
+          echo $(date)"backup failed!" >>$TARGET/$sha/log/$backupname.log
         fi
         echo "$sha $src" >>$TARGET/TOC.tmp
         mv $TARGET/$sha/${backupname}.tmp $TARGET/$sha/${backupname}
@@ -216,7 +223,7 @@ TARGET=""
         stamp=$(stat -c %Y $STORAGE/$sha/checkpoint.tmp)
         logger -t $TAG "cron checkpoint for '$src'"
         TMP=$(mktemp)
-        find $src -newer $STORAGE/$sha/checkpoint "${EXCLUDESFIND[@]}" -printf "%y %h/%f\n" 2>/dev/null >$TMP
+        find $src -cnewer $STORAGE/$sha/checkpoint "${EXCLUDESFIND[@]}" -printf "%y %h/%f\n" 2>/dev/null >$TMP
         cat $TMP | grep "^[^d]" | cut -c 3- | sort >$STORAGE/$sha/${stamp}_add
         cat $TMP | grep "^[d]"  | cut -c 3- | sed -e 's/^/^/g' -e 's#$#/[^/]*$#g' | \
           zgrep -f - $STORAGE/$sha/toc.gz | awk '@load "filefuncs"; {  rc=stat($0,fstat); if(rc!=0) {print $0}}' >$STORAGE/$sha/${stamp}_del
@@ -232,6 +239,7 @@ TARGET=""
         fi
         [[ -f $STORAGE/$sha/toc.tmp.gz ]] && mv $STORAGE/$sha/toc.tmp.gz $STORAGE/$sha/toc.gz
         mv $STORAGE/$sha/checkpoint.tmp $STORAGE/$sha/checkpoint
+        printf "%s\n" "${EXCLUDESTEXT[@]}" >$STORAGE/$sha/${stamp}_exc
         # remove consumed deltas for this source
         TMP=$(mktemp)
         nt=0
