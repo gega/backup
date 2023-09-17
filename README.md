@@ -14,7 +14,9 @@ local fast incremental backup for multiple targets
   1. no target volumes are available
   2. or no deltas were found between the last backup and now
 - if multiple targets are mounted at the same time, every backup run chooses one of them randomly
+- if the target volume is permanently mounted, the backups happen right after the delta files were generated
 
+## usage
 
 Usage: backup.sh <command>
 
