@@ -1,7 +1,7 @@
 # backup
 local fast incremental backup for multiple targets
 
-## design workflow
+## assumed workflow
 
 - having multiple external HDDs for storing the backups, at least 20% larger than the amount of data
 - there are periodic checks running on the machine to collect new and deleted files, running from cronjobs hourly or daily -- this process takes just minutes
