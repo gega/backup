@@ -147,9 +147,17 @@ TARGET=""
           # 3. remove deleted files
           echo $(date)" Files to delete (" >>$TARGET/$sha/log/$backupname.log
           cat $TMP | grep "del$" | tr '\n' '\0' | sort -mu --files0-from=- | sed -e "s#^${srcdir}/##g" | \
-            tee -a $TARGET/$sha/log/$backupname.log | sed -e "s#^#$TARGET/$sha/${backupname}.tmp/#g"|xargs rm -f
+            tee -a $TARGET/$sha/log/$backupname.log | sed -e "s#^#$TARGET/$sha/${backupname}.tmp/#g"|tr '\n' '\0' | xargs -0 rm -f
           echo $(date)" Files to delete )" >>$TARGET/$sha/log/$backupname.log
+          # 4. statistics
+          echo $(date)" largest files copied: " >>$TARGET/$sha/log/$backupname.log
+          TMP2=$(mktemp)
+          cat $TMP | grep add$ | tr '\n' '\0' | sort -mu --files0-from=- | tr '\n' '\0' | \
+            xargs -0 stat -c "%s %n" 2>/dev/null | tee $TMP2 | sort -n | tail -5 >>$TARGET/$sha/log/$backupname.log
+          echo -n $(date)" total number of bytes copied: " >>$TARGET/$sha/log/$backupname.log
+          cat $TMP2 | cut -d" " -f1|paste -sd+ - |bc >>$TARGET/$sha/log/$backupname.log
           rm -f $TMP
+          rm -f $TMP2
           popd
           ok=0
         else
@@ -250,7 +258,7 @@ TARGET=""
           ((nt+=1))
         done
         # deltas will appear as many times as many times they were consumed by targets
-        cat $TMP | sort | uniq -c | awk '{if($1>='$nt') print "'$STORAGE/$sha'/" $2}'|xargs rm -f
+        cat $TMP | sort | uniq -c | awk '{if($1>='$nt') print "'$STORAGE/$sha'/" $2}'| tr '\n' '\0' | xargs -0 rm -f
         rm -f $TMP
       else
         logger -t $TAG "cron init for '$src'"
