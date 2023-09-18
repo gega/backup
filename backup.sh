@@ -61,13 +61,13 @@ T=2
 while IFS= read -r line; do
   if [ $T -eq 2 ]; then
     if [ x"$line" != x"" ]; then
-      TARGETS+=("$(realpath $line)")
+      TARGETS+=("$(realpath -m $line)")
     else
       T=1
     fi
   elif [ $T -eq 1 ]; then
     if [ x"$line" != x"" ]; then
-      SOURCES+=("$(realpath $line)")
+      SOURCES+=("$(realpath -m $line)")
     else
       T=0
     fi
@@ -129,7 +129,7 @@ TARGET=""
           #   cp -alT $src/ $dst/					# 1174s
           #   pushd $src; pax -rwlpe . $dst; popd			# 2610s
           #   rsync -av --link-dest="$src" $src/ $dst			# 1370s
-          cp -alT $(realpath $TARGET/$sha/latest/) $TARGET/$sha/${backupname}.tmp/
+          cp -alT $(realpath -m $TARGET/$sha/latest/) $TARGET/$sha/${backupname}.tmp/
           # 2. add missing files
           echo $(date)" Files to add (" >>$TARGET/$sha/log/$backupname.log
           srcdir=$(dirname $src)
