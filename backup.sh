@@ -212,7 +212,7 @@ TARGET=""
       mkdir -p $STORAGE/targets/$sha
     done
 
-    pushd $STORAGE/targets
+    pushd $STORAGE/targets &>/dev/null
     for t in $(ls -1 $STORAGE/targets)
     do
       if [[ ! "$TARGETSHAS" =~ " $t" ]]; then
@@ -220,7 +220,7 @@ TARGET=""
         rm -rf $t
       fi
     done
-    popd
+    popd &>/dev/null
 
     for src in "${SOURCES[@]}"
     do
