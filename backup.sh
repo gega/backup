@@ -123,14 +123,8 @@ TARGET=""
           echo "[ "$(date)" incremental backup of $src" >>$TARGET/$sha/log/$backupname.log
           mkdir -p $TARGET/$sha/${backupname}.tmp
           pushd $STORAGE/$sha/
-          # 1. create hardlink clone structure (slowest part)
-          # different methods benchmarked:
-          #   find $src | cpio -pdml $dst/				# 1480s
-          #   cp -alT $src/ $dst/					# 1174s
-          #   pushd $src; pax -rwlpe . $dst; popd			# 2610s
-          #   rsync -av --link-dest="$src" $src/ $dst			# 1370s
-          cp -alT $(realpath -m $TARGET/$sha/latest/) $TARGET/$sha/${backupname}.tmp/
-          # 2. add missing files
+
+          # 1. add missing files
           echo $(date)" Files to add (" >>$TARGET/$sha/log/$backupname.log
           srcdir=$(dirname $src)
           TMP=$(mktemp)
@@ -144,6 +138,17 @@ TARGET=""
             tar --ignore-failed-read -C "$srcdir" -T - -cf - | tar -C $TARGET/$sha/${backupname}.tmp/ -xvf - >>$TARGET/$sha/log/$backupname.log 2>&1
           # cat add | sed 's#^/home/##g' | tar --ignore-failed-read -C /home/gega/.. -T - -cf - | tar -tf -
           echo $(date)" Files to add )" >>$TARGET/$sha/log/$backupname.log
+
+          # 2. create hardlink clone structure (slowest part)
+          # different methods benchmarked:
+          #   find $src | cpio -pdml $dst/				# 1480s
+          #   cp -alT $src/ $dst/					# 1174s
+          #   pushd $src; pax -rwlpe . $dst; popd			# 2610s
+          #   rsync -av --link-dest="$src" $src/ $dst			# 1370s
+          echo $(date)" Hardlink structure (" >>$TARGET/$sha/log/$backupname.log
+          cp -alTn $(realpath -m $TARGET/$sha/latest/) $TARGET/$sha/${backupname}.tmp/ >>$TARGET/$sha/log/$backupname.log 2>&1
+          echo $(date)" Hardlink structure )" >>$TARGET/$sha/log/$backupname.log
+
           # 3. remove deleted files
           echo $(date)" Files to delete (" >>$TARGET/$sha/log/$backupname.log
           cat $TMP | grep "del$" | tr '\n' '\0' | sort -mu --files0-from=- | sed -e "s#^${srcdir}/##g" | \

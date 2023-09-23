@@ -1,6 +1,49 @@
 # backup
 local fast incremental backup for multiple targets
 
+## background
+
+Backup is a highly personal matter so this description will show my
+preferences and how I ended up creating this tool.
+
+At first, I don't want to store my backup in the cloud. For three main
+reasons: trust issues, bandwidth and internet access problems.
+
+Second, I would like to have a backup which can be read easily without the
+same backup tool I am using for creating it.
+
+I also would like to delete any one of the backups without disturbing the
+others.
+
+These two requirement points toward the hardlink based backups.
+
+I started to use dirvish and I used it for years until the main developer
+died in a terrible accident and the package became unmaintained. I switched
+to backintime which is very similar to dirvish.
+
+Both packages based on rsync which makes them rather slow. In my daily
+machine, I have 3TB storage at the moment, and the average backup takes
+several hours even if almost nothing changes. The result is skipping backups
+and spending even more time on them. The last time I used backintime, it
+took five hours to finish, which is almost longer than a night.
+
+Simple benchmark on a Thinkpad X1 Carbon gen4, i7-6600U, 16GB ram, Samsung 970 EVO Plus 2TB
+with ~52k new files (15.7GB new data) and 60 files to remove:
+
+adding the new files: 663s
+creating hardlink structure of unchanged files: 1050s
+deleting files: 5s
+total: ~29 minutes
+largest new file: 1.2GB
+
+## design goals
+
+- hardlink based independent backups
+- must be relatively quick even with multi-TB partitions
+- backup should automatically start when the backup disk is mounted
+- crypto should not be part of the backup tool (LUKS can help)
+- multiple target disks should be supported
+
 ## assumed workflow
 
 - having multiple external HDDs for storing the backups, at least 20% larger than the amount of data
