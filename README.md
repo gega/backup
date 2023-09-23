@@ -29,7 +29,8 @@ Simple benchmark on a Thinkpad X1 Carbon gen4, i7-6600U, 16GB ram, Samsung 970 E
 | total                        | 29    | minutes |
 
 
-- number of new files: 		52k
+- total number of files:	5,100,000
+- number of new files: 		52,000
 - total new data: 		15.7GB
 - largest new file: 		1.2GB
 - number of files to remove: 	60
