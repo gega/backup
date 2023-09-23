@@ -4,37 +4,35 @@ local fast incremental backup for multiple targets
 ## background
 
 Backup is a highly personal matter so this description will show my
-preferences and how I ended up creating this tool.
+preferences and how I ended up creating this tool. 
 
 At first, I don't want to store my backup in the cloud. For three main
-reasons: trust issues, bandwidth and internet access problems.
+reasons: trust issues, bandwidth and internet access problems. Second, I would like to have a backup which can be read easily without the
+same backup tool I am using for creating it. I also would like to delete any one of the backups without disturbing the
+others. The last two requirement points toward the hardlink based backups.
 
-Second, I would like to have a backup which can be read easily without the
-same backup tool I am using for creating it.
-
-I also would like to delete any one of the backups without disturbing the
-others.
-
-These two requirement points toward the hardlink based backups.
-
-I started to use dirvish and I used it for years until the main developer
-died in a terrible accident and the package became unmaintained. I switched
-to backintime which is very similar to dirvish.
+I started to use [dirvish](https://dirvish.org/) and I used it for years. Lately I switched to [Back In Time](https://github.com/bit-team/backintime) which is very similar to dirvish.
 
 Both packages based on rsync which makes them rather slow. In my daily
 machine, I have 3TB storage at the moment, and the average backup takes
 several hours even if almost nothing changes. The result is skipping backups
-and spending even more time on them. The last time I used backintime, it
+and spending even more time on them. The last time I used Back In Time, it
 took five hours to finish, which is almost longer than a night.
 
-Simple benchmark on a Thinkpad X1 Carbon gen4, i7-6600U, 16GB ram, Samsung 970 EVO Plus 2TB
-with ~52k new files (15.7GB new data) and 60 files to remove:
+Simple benchmark on a Thinkpad X1 Carbon gen4, i7-6600U, 16GB ram, Samsung 970 EVO Plus 2TB:
 
-adding the new files: 663s
-creating hardlink structure of unchanged files: 1050s
-deleting files: 5s
-total: ~29 minutes
-largest new file: 1.2GB
+| action                       | time  | unit    |
+| ---------------------------- | ----- | ------- |
+| adding the new files         | 663   | seconds |
+| creating hardlink structure  | 1050  | seconds |
+| deleting files               | 5     | seconds |
+| total                        | 29    | minutes |
+
+
+- number of new files: 		52k
+- total new data: 		15.7GB
+- largest new file: 		1.2GB
+- number of files to remove: 	60
 
 ## design goals
 
