@@ -17,7 +17,7 @@ Both packages based on rsync which makes them rather slow. In my daily
 machine, I have 3TB storage at the moment, and the average backup takes
 several hours even if almost nothing changes. The result is skipping backups
 and spending even more time on them. The last time I used Back In Time, it
-took five hours to finish, which is almost longer than a night.
+took five hours to finish. Similar operation can be done in ~10% of that time with this tool.
 
 Simple benchmark on a Thinkpad X1 Carbon gen4, i7-6600U, 16GB ram, Samsung 970 EVO Plus 2TB:
 
@@ -48,15 +48,15 @@ Simple benchmark on a Thinkpad X1 Carbon gen4, i7-6600U, 16GB ram, Samsung 970 E
 - having multiple external HDDs for storing the backups, at least 20% larger than the amount of data
 - there are periodic checks running on the machine to collect new and deleted files, running from cronjobs hourly or daily -- this process takes just minutes
 - when one of the target disks are mounted, the backup utility triggered (by frequent periodic cronjob or udev trigger) and processes the delta files between the last backup and now:
-  1. a hardlink copy of the latest backup is created
-  2. new files are copied into the new structure
-  3. deleted files are removed from the new directory tree
+  1. new files are copied to the new backup directory
+  2. a hardlink copy of the latest backup is created skipping the new files
+  3. deleted files are removed from the created directory tree
   4. administrative data are updated (checkpoints, TOC-es, etc)
 - the backup process quickly quits when
   1. no target volumes are available
-  2. or no deltas were found between the last backup and now
-- if multiple targets are mounted at the same time, every backup run chooses one of them randomly
-- if the target volume is permanently mounted, the backups happen right after the delta files were generated
+  2. or no deltas were found between the last backup and the current time
+- if multiple targets are mounted at the same time, every backup chooses one of them randomly
+- if one of the target volume is permanently mounted, backups performed slightly after the delta files were generated if the backup is cron activated
 
 ## usage
 
