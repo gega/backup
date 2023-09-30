@@ -133,7 +133,7 @@ TARGET=""
           #  grep add$ | tr '\n' '\0' | sort -mu --files0-from=- | sed -e "s#^${srcdir}/##g" | \
           #  rsync -v --ignore-missing-args --no-compress -W --files-from=- $srcdir $TARGET/$sha/${backupname}.tmp/ >>$TARGET/$sha/log/$backupname.log 2>&1
           # method #2 tar - works, benchmarking in progress
-          find $STORAGE/$sha/ -name "[1-9]*_[ad][de][dl]" -printf "%f\n" | sort -n | awk -F_ '{if($1>'$checkpoint') print $0}' | tee $TMP | \
+          find $STORAGE/$sha/ -name "[1-9]*_[ade][dex][dlc]" -printf "%f\n" | sort -n | awk -F_ '{if($1>'$checkpoint') print $0}' | tee $TMP | \
             grep add$ | tr '\n' '\0' | sort -mu --files0-from=- | sed -e "s#^${srcdir}/##g" | \
             tar --ignore-failed-read -C "$srcdir" -T - -cf - | tar -C $TARGET/$sha/${backupname}.tmp/ -xvf - >>$TARGET/$sha/log/$backupname.log 2>&1
           # cat add | sed 's#^/home/##g' | tar --ignore-failed-read -C /home/gega/.. -T - -cf - | tar -tf -
@@ -154,15 +154,34 @@ TARGET=""
           cat $TMP | grep "del$" | tr '\n' '\0' | sort -mu --files0-from=- | sed -e "s#^${srcdir}/##g" | \
             tee -a $TARGET/$sha/log/$backupname.log | sed -e "s#^#$TARGET/$sha/${backupname}.tmp/#g"|tr '\n' '\0' | xargs -0 rm -f
           echo $(date)" Files to delete )" >>$TARGET/$sha/log/$backupname.log
-          # 4. statistics
+          
+          # 4. check exclude pattern changes
+          if [ -f $STORAGE/targets/$tsha/$sha/exc ]; then
+            echo $(date)"  (" >>$TARGET/$sha/log/$backupname.log
+            EXC=()
+            # cat new |diff --unchanged-line-format= --old-line-format='%L' --new-line-format= - old
+            EXC+=$(cat $TMP | grep "exc$" | tr '\n' '\0' | sort -u --files0-from=- | \
+              diff --unchanged-line-format= --old-line-format='%L' --new-line-format= - $STORAGE/targets/$tsha/$sha/exc)
+            EXCFIND=()
+            for e in "${EXC[@]}"
+            do
+              EXCFIND+=("-path" "$e")
+            done
+            if [ ${#EXCFIND[@]} -gt 0 ]; then
+              echo $(date)"  Exclude pattern update, removing matching files (" >>$TARGET/$sha/log/$backupname.log
+              find $TARGET/$sha/${backupname}.tmp "${EXCFIND[@]}" -exec rm -f {} \; >>$TARGET/$sha/log/$backupname.log 2>&1
+              echo $(date)"  Exclude pattern update done )" >>$TARGET/$sha/log/$backupname.log
+            fi
+          fi
+
+          # 5. statistics
           echo $(date)" largest files copied: " >>$TARGET/$sha/log/$backupname.log
           TMP2=$(mktemp)
           cat $TMP | grep add$ | tr '\n' '\0' | sort -mu --files0-from=- | tr '\n' '\0' | \
             xargs -0 stat -c "%s %n" 2>/dev/null | tee $TMP2 | sort -n | tail -5 >>$TARGET/$sha/log/$backupname.log
           echo -n $(date)" total number of bytes copied: " >>$TARGET/$sha/log/$backupname.log
           cat $TMP2 | cut -d" " -f1|paste -sd+ - |bc >>$TARGET/$sha/log/$backupname.log
-          rm -f $TMP
-          rm -f $TMP2
+          rm -f $TMP $TMP2
           popd
           ok=0
         else
@@ -175,6 +194,13 @@ TARGET=""
         # initial full backup (could be very slow, even days!)
         renice -n 5 $$
         echo "[ "$(date)" full backup of $src" >>$TARGET/$sha/log/$backupname.log
+        # check future files in the SRC directory, and notify user!
+        echo $(date)" Checking $src ("
+        echo $(date)" Future files: "
+        TMP=$(mktemp)
+        find "$src" -type f -newer $TMP >>$TARGET/$sha/log/$backupname.log 2>&1
+        rm -f $TMP
+        echo $(date)" Checking source )"
         mkdir -p $TARGET/$sha/${backupname}.tmp
         logger -t $TAG "initial full backup $backupname of $src to $TARGET"
         rsync -aW "${EXCLUDESRSYNC[@]}" $src $TARGET/$sha/${backupname}.tmp/ >>$TARGET/$sha/log/$backupname.log
@@ -235,24 +261,32 @@ TARGET=""
         touch $STORAGE/$sha/checkpoint.tmp
         stamp=$(stat -c %Y $STORAGE/$sha/checkpoint.tmp)
         logger -t $TAG "cron checkpoint for '$src'"
+        # transition to fixed toc handling
+        if [ ! -f $STORAGE/$sha/TOC.gz ]; then
+          logger -t $TAG "cron rebuilding TOC for '$src'"
+          rm -f $STORAGE/$sha/toc.gz $STORAGE/$sha/toc.tmp.gz
+          find $src | gzip >$STORAGE/$sha/TOC.gz
+        fi
         TMP=$(mktemp)
         find $src -cnewer $STORAGE/$sha/checkpoint "${EXCLUDESFIND[@]}" -printf "%y %h/%f\n" 2>/dev/null >$TMP
         cat $TMP | grep "^[^d]" | cut -c 3- | sort >$STORAGE/$sha/${stamp}_add
         cat $TMP | grep "^[d]"  | cut -c 3- | sed -e 's/^/^/g' -e 's#$#/[^/]*$#g' | \
-          zgrep -f - $STORAGE/$sha/toc.gz | awk '@load "filefuncs"; {  rc=stat($0,fstat); if(rc!=0) {print $0}}' >$STORAGE/$sha/${stamp}_del
-        rm -f $TMP
-        D=$(wc -l $STORAGE/$sha/${stamp}_del|cut -d' ' -f1)
-        if [ $D -lt 5000 ]; then
-          if [ $D -gt 0 ]; then
-            sed -e 's/^/^/g' -e 's/$/$/g' $STORAGE/$sha/${stamp}_del | zgrep -v -f - $STORAGE/$sha/toc.gz | gzip >$STORAGE/$sha/toc.tmp.gz
+          zgrep -f - $STORAGE/$sha/TOC.gz | awk '@load "filefuncs"; {  rc=stat($0,fstat); if(rc!=0) {print $0}}' | sort >$STORAGE/$sha/${stamp}_del
+        rm -f $TMP $STORAGE/$sha/TOC.tmp.gz
+        ND=$(wc -l --total=only $STORAGE/$sha/${stamp}_del|cut -d' ' -f1)
+        NA=$(wc -l --total=only $STORAGE/$sha/${stamp}_add|cut -d' ' -f1)
+        if [ $ND -lt 5000 ] && [ $NA -lt 50000 ]; then # TODO: find out the optimal limits
+          if [ $((ND+NA)) -gt 0 ]; then
+            sed -e 's/^/^/g' -e 's/$/$/g' $STORAGE/$sha/${stamp}_del | zgrep -v -f - $STORAGE/$sha/TOC.gz |\
+              paste -s -d '\n' $STORAGE/$sha/${stamp}_add - | gzip >$STORAGE/$sha/TOC.tmp.gz
           fi
         else
-          # too many deletion, regenerate the toc
-          find $src | gzip >$STORAGE/$sha/toc.tmp.gz
+          # too many changes, regenerate the toc
+          find $src | gzip >$STORAGE/$sha/TOC.tmp.gz
         fi
-        [[ -f $STORAGE/$sha/toc.tmp.gz ]] && mv $STORAGE/$sha/toc.tmp.gz $STORAGE/$sha/toc.gz
+        [[ -f $STORAGE/$sha/TOC.tmp.gz ]] && mv $STORAGE/$sha/TOC.tmp.gz $STORAGE/$sha/TOC.gz
         mv $STORAGE/$sha/checkpoint.tmp $STORAGE/$sha/checkpoint
-        printf "%s\n" "${EXCLUDESTEXT[@]}" >$STORAGE/$sha/${stamp}_exc
+        printf "%s\n" "${EXCLUDESTEXT[@]}" | sort >$STORAGE/$sha/${stamp}_exc
         # remove consumed deltas for this source
         TMP=$(mktemp)
         nt=0
@@ -268,7 +302,7 @@ TARGET=""
       else
         logger -t $TAG "cron init for '$src'"
         touch $STORAGE/$sha/checkpoint.tmp
-        find $src | gzip >$STORAGE/$sha/toc.gz
+        find $src | gzip >$STORAGE/$sha/TOC.gz
         mv $STORAGE/$sha/checkpoint.tmp $STORAGE/$sha/checkpoint
       fi
     done
