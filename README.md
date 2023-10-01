@@ -21,14 +21,14 @@ took five hours to finish. Similar operation can be done in ~10% of that time wi
 
 ## how it works
 
-There are three main operations for this backup tool:
+There are three main operations of this backup tool:
 - generate delta from a previous checkpoint
 - create incremental backup
 - initialize new backup target
 
 ### delta generation
 
-This step runs regularly by a cronjob (I prefer [fcron](http://fcron.free.fr/) on desktop) and collects the newly created files and deleted files since the previous run. This operation does not require to have the backup disk mounted and takes just a few seconds or on very large disks a few minutes. The deltas are generated based on modification time, so in case you have files modified in the future, it needs to be fixed first. The initialize phase will check your sources and notifies you in the logfile if detected. 
+This step runs regularly by a cronjob (I prefer [fcron](http://fcron.free.fr/ and I choose to execute in every six hours) on desktop) and collects the newly created files and deleted files since the previous run. This operation does not require to have the backup disk mounted and takes just a few seconds or on very large disks a few minutes. The deltas are generated based on modification time, so in case you have files modified in the future, it needs to be fixed first. The initialize phase will check your sources and notifies you in the logfile if any discrepancies are detected. 
 
 **WARNING:** In case you restore files with fake or archive metadata, those files may not be picked up by the backup tool.
 
