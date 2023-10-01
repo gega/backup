@@ -30,15 +30,15 @@ There are three main operations of this backup tool:
 
 This step runs regularly by a cronjob (I prefer [fcron](http://fcron.free.fr/) and I choose to execute in every six hours) on desktop) and collects the newly created files and deleted files since the previous run. This operation does not require to have the backup disk mounted and takes just a few seconds or on very large disks a few minutes. The deltas are generated based on modification time, so in case you have files modified in the future, it needs to be fixed first. The initialize phase will check your sources and notifies you in the logfile if any discrepancies are detected. 
 
-**WARNING:** In case you restore files with fake or archive metadata, those files may not be picked up by the backup tool.
+**WARNING:** In case you restore files with fake or archived metadata, those files may not be picked up by this backup tool.
 
 ### incremental backup
 
-When one of the backup targets are attached, the backup operation will collect all delta files between now and the last backup on the particular target disk and copies the new files, creates a hardlink structure from the latest backup and removes the meanwhile deleted files. This can be started from an [udev rule](https://unix.stackexchange.com/a/28711) or by a frequent cron job. This operation does not read the source directories, just do the job based on the stored intermediate delta files.
+When one of the backup targets are attached, the backup operation will collect all delta files between now and the last backup on the particular target disk and copies the new files, creates a hardlink structure from the latest backup and removes the meanwhile deleted files. This can be started from an [udev rule](https://unix.stackexchange.com/a/28711) or by a frequent cron job. This operation does not walk through the source directories, just do the job based on the stored intermediate delta files. The delta files stores only filenames to keep them small and the files are copied from the source directories directly.
 
 ### initialize target
 
-Long operation, creating the initial backup from the source disks. This tool uses rsync for this and only this operation. It needs to be done once per target/source pairs and in my case it took more than a day to complete.
+Long operation, creating the initial backup from the source disks. It uses rsync for this and only this operation. It needs to be done once per target/source pairs and in my case it took more than a day to complete.
 
 ## benchmark
 
