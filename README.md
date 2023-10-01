@@ -19,7 +19,7 @@ several hours even if almost nothing changes. The result is skipping backups
 and spending even more time on them. The last time I used Back In Time, it
 took five hours to finish. Similar operation can be done in ~10% of that time with this tool.
 
-Simple benchmark on a Thinkpad X1 Carbon gen4, i7-6600U, 16GB ram, Samsung 970 EVO Plus 2TB:
+Simple benchmark on a Thinkpad X1 Carbon gen4, i7-6600U, 16GB ram, Samsung 970 EVO Plus 2TB, backup disk is a TOSHIBA external USB 4TB, 5Gbps:
 
 | action                       | time  | unit    |
 | ---------------------------- | ----- | ------- |
