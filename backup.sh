@@ -120,6 +120,7 @@ TARGET=""
       ok=1
       mkdir -p $TARGET/$sha/log/
       let TMFILES=TMLINKS=TMDEL=TMEXC=TMSTAT=TMCHK=0
+      TOTALBYTES=0
       if [ -L $TARGET/$sha/latest ] && [ -f $TARGET/$sha/checkpoint ]; then
         # incremental backup from latest
         checkpoint=$(cat $TARGET/$sha/checkpoint)
@@ -196,8 +197,9 @@ TARGET=""
           TMP2=$(mktemp)
           cat $TMP | grep add$ | tr '\n' '\0' | sort -mu --files0-from=- | tr '\n' '\0' | \
             xargs -0 stat -c "%s %n" 2>/dev/null | tee $TMP2 | sort -n | tail -5 >>$TARGET/$sha/log/$backupname.log
-          echo -n $(date)" total number of bytes copied: " >>$TARGET/$sha/log/$backupname.log
-          cat $TMP2 | cut -d" " -f1|paste -sd+ - |bc >>$TARGET/$sha/log/$backupname.log
+          echo -n $(date)" total data copied: " >>$TARGET/$sha/log/$backupname.log
+          TOTALBYTES=$(cat $TMP2 | cut -d" " -f1|paste -sd+ - |bc)" bytes"
+          echo $TOTALBYTES >>$TARGET/$sha/log/$backupname.log
           rm -f $TMP $TMP2
           popd
           TMSTAT=$SECONDS
@@ -231,6 +233,8 @@ TARGET=""
         echo "$tsha $TARGET" >$TARGET/TARGET_ID
         ok=$?
         TMFILES=$SECONDS
+        
+        TOTALBYTES=$(df -h --output=used $src|tail -1)
       fi
       if [ $ok -ge 0 ]; then
         logger -t $TAG "backup $backupname of $src to $TARGET finished exit code "$ok
@@ -244,6 +248,9 @@ TARGET=""
         # speed measurement
         TMALL=$((TMFILES+TMLINKS+TMDEL+TMEXC+TMSTAT+TMCHK))
         echo -e "Speed total: \t$TMALL s\n  adding files:\t$TMFILES s\n  deleting:\t$TMDEL s\n  making links:\t$TMLINKS s\n  exclude:\t$TMEXC s\n  statistics:\t$TMSTAT s\n  source check:\t$TMCHK s" >>$TARGET/$sha/log/$backupname.log
+
+        # local log
+        echo $(date)" done $backupname of $src to $TARGET. Time: ${TMALL}s Data: ${TOTALBYTES}" >>$STORAGE/$sha/log
 
         # seal
         mkdir -p $STORAGE/targets/$tsha/$sha/
