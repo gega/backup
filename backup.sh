@@ -88,6 +88,13 @@ TARGET=""
 
     ####################################### backup
 
+    # skip backup temporarily
+    if [ -f ~/.nobackup ]; then
+      logger -t $TAG "backup temporarily skipped because ~/.nobackup exists"
+      exit 0
+    fi
+
+    # check if any of the targets are present
     tl=${#TARGETS[@]}
     for e in "${TARGETS[@]}"
     do
@@ -112,6 +119,7 @@ TARGET=""
       sha=$(echo "$src"|sha1sum|cut -d" " -f1)
       ok=1
       mkdir -p $TARGET/$sha/log/
+      let TMFILES=TMLINKS=TMDEL=TMEXC=TMSTAT=TMCHK=0
       if [ -L $TARGET/$sha/latest ] && [ -f $TARGET/$sha/checkpoint ]; then
         # incremental backup from latest
         checkpoint=$(cat $TARGET/$sha/checkpoint)
@@ -125,6 +133,7 @@ TARGET=""
           pushd $STORAGE/$sha/
 
           # 1. add missing files
+          SECONDS=0
           echo $(date)" Files to add (" >>$TARGET/$sha/log/$backupname.log
           srcdir=$(dirname $src)
           TMP=$(mktemp)
@@ -138,24 +147,30 @@ TARGET=""
             tar --ignore-failed-read -C "$srcdir" -T - -cf - | tar -C $TARGET/$sha/${backupname}.tmp/ -xvf - >>$TARGET/$sha/log/$backupname.log 2>&1
           # cat add | sed 's#^/home/##g' | tar --ignore-failed-read -C /home/gega/.. -T - -cf - | tar -tf -
           echo $(date)" Files to add )" >>$TARGET/$sha/log/$backupname.log
+          TMFILES=$SECONDS
 
-          # 2. create hardlink clone structure (slowest part)
+          # 2. create hardlink clone structure
           # different methods benchmarked:
           #   find $src | cpio -pdml $dst/				# 1480s
           #   cp -alT $src/ $dst/					# 1174s
           #   pushd $src; pax -rwlpe . $dst; popd			# 2610s
           #   rsync -av --link-dest="$src" $src/ $dst			# 1370s
+          SECONDS=0
           echo $(date)" Hardlink structure (" >>$TARGET/$sha/log/$backupname.log
           cp -alTn $(realpath -m $TARGET/$sha/latest/) $TARGET/$sha/${backupname}.tmp/ >>$TARGET/$sha/log/$backupname.log 2>&1
           echo $(date)" Hardlink structure )" >>$TARGET/$sha/log/$backupname.log
+          TMLINKS=$SECONDS
 
           # 3. remove deleted files
+          SECONDS=0
           echo $(date)" Files to delete (" >>$TARGET/$sha/log/$backupname.log
           cat $TMP | grep "del$" | tr '\n' '\0' | sort -mu --files0-from=- | sed -e "s#^${srcdir}/##g" | \
             tee -a $TARGET/$sha/log/$backupname.log | sed -e "s#^#$TARGET/$sha/${backupname}.tmp/#g"|tr '\n' '\0' | xargs -0 rm -f
           echo $(date)" Files to delete )" >>$TARGET/$sha/log/$backupname.log
+          TMDEL=$SECONDS
           
           # 4. check exclude pattern changes
+          SECONDS=0
           if [ -f $STORAGE/targets/$tsha/$sha/exc ]; then
             echo $(date)"  (" >>$TARGET/$sha/log/$backupname.log
             EXC=()
@@ -173,8 +188,10 @@ TARGET=""
               echo $(date)"  Exclude pattern update done )" >>$TARGET/$sha/log/$backupname.log
             fi
           fi
+          TMEXC=$SECONDS
 
           # 5. statistics
+          SECONDS=0
           echo $(date)" largest files copied: " >>$TARGET/$sha/log/$backupname.log
           TMP2=$(mktemp)
           cat $TMP | grep add$ | tr '\n' '\0' | sort -mu --files0-from=- | tr '\n' '\0' | \
@@ -183,6 +200,8 @@ TARGET=""
           cat $TMP2 | cut -d" " -f1|paste -sd+ - |bc >>$TARGET/$sha/log/$backupname.log
           rm -f $TMP $TMP2
           popd
+          TMSTAT=$SECONDS
+
           ok=0
         else
           # no delta files found between the checkpoints and now, this source is OK
@@ -195,17 +214,23 @@ TARGET=""
         renice -n 5 $$
         echo "[ "$(date)" full backup of $src" >>$TARGET/$sha/log/$backupname.log
         # check future files in the SRC directory, and notify user!
+        SECONDS=0
         echo $(date)" Checking $src ("
         echo $(date)" Future files: "
         TMP=$(mktemp)
         find "$src" -type f -newer $TMP >>$TARGET/$sha/log/$backupname.log 2>&1
         rm -f $TMP
         echo $(date)" Checking source )"
+        TMCHK=$SECONDS
+
+        # full copy
+        SECONDS=0
         mkdir -p $TARGET/$sha/${backupname}.tmp
         logger -t $TAG "initial full backup $backupname of $src to $TARGET"
         rsync -aW "${EXCLUDESRSYNC[@]}" $src $TARGET/$sha/${backupname}.tmp/ >>$TARGET/$sha/log/$backupname.log
         echo "$tsha $TARGET" >$TARGET/TARGET_ID
         ok=$?
+        TMFILES=$SECONDS
       fi
       if [ $ok -ge 0 ]; then
         logger -t $TAG "backup $backupname of $src to $TARGET finished exit code "$ok
@@ -215,11 +240,17 @@ TARGET=""
           echo $(date)"backup failed!" >>$TARGET/$sha/log/$backupname.log
         fi
         echo "$sha $src" >>$TARGET/TOC.tmp
+        
+        # speed measurement
+        TMALL=$((TMFILES+TMLINKS+TMDEL+TMEXC+TMSTAT+TMCHK))
+        echo -e "Speed total: \t$TMALL s\n  adding files:\t$TMFILES s\n  deleting:\t$TMDEL s\n  making links:\t$TMLINKS s\n  exclude:\t$TMEXC s\n  statistics:\t$TMSTAT s\n  source check:\t$TMCHK s" >>$TARGET/$sha/log/$backupname.log
+
+        # seal
+        mkdir -p $STORAGE/targets/$tsha/$sha/
         mv $TARGET/$sha/${backupname}.tmp $TARGET/$sha/${backupname}
         rm -f $TARGET/$sha/latest
         ln -fs $TARGET/$sha/${backupname} $TARGET/$sha/latest
         echo "$stamp" >$TARGET/$sha/checkpoint
-        mkdir -p $STORAGE/targets/$tsha/$sha/
         cp -a $TARGET/$sha/checkpoint $STORAGE/targets/$tsha/$sha/
         echo "] "$(date) >>$TARGET/$sha/log/$backupname.log
       fi
