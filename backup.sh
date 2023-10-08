@@ -230,8 +230,8 @@ TARGET=""
         mkdir -p $TARGET/$sha/${backupname}.tmp
         logger -t $TAG "initial full backup $backupname of $src to $TARGET"
         rsync -aW "${EXCLUDESRSYNC[@]}" $src $TARGET/$sha/${backupname}.tmp/ >>$TARGET/$sha/log/$backupname.log
-        echo "$tsha $TARGET" >$TARGET/TARGET_ID
         ok=$?
+        echo "$tsha $TARGET" >$TARGET/TARGET_ID
         TMFILES=$SECONDS
         
         TOTALBYTES=$(df -h --output=used $src|tail -1)
