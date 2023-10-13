@@ -37,7 +37,7 @@ When one of the backup targets are attached, the backup operation will collect a
 
 ### initialize target
 
-Long operation, creating the initial backup from the source disks. It uses rsync for this and only this operation. It needs to be done once per target/source pairs and in my case it took more than a day to complete.
+Before using a new target disk, it needs to be initialized. It is a long operation; creating the initial backup from the source disks. It uses rsync for this and only this operation. It needs to be done once per target/source pairs and in my case it took more than a day to complete.
 
 ## benchmark
 
