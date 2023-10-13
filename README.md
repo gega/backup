@@ -27,7 +27,7 @@ There are three main operations of this backup tool:
 
 ### delta generation
 
-This step runs regularly by a cronjob (I prefer [fcron](http://fcron.free.fr/) and I choose to execute in every six hours) and collects the newly created and deleted files since the previous run. This operation does not require to have the backup disk mounted and takes just a few seconds or on very large disks a few minutes. The deltas are generated based on modification time, so in case you have files modified in the future, it needs to be fixed first. The initialize phase will check your sources and notifies you in the logfile if any discrepancies are detected. 
+This step runs regularly by a cronjob (I prefer [fcron](http://fcron.free.fr/) and I choose to execute in every six hours) and collects the newly created and deleted files since the previous run. This operation does not require to have the backup disk mounted and takes just a few seconds or for very large number of files a few minutes. The deltas are generated based on modification time, so in case you have files modified in the future, it needs to be fixed first. The initialize phase will check your sources and notifies you in the logfile if any discrepancies are detected. 
 
 **WARNING:** In case you restore files with fake or archived metadata, those files may not be picked up by this backup tool.
 
