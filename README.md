@@ -7,8 +7,7 @@ Backup is a highly personal matter so this description will show my
 preferences and how I ended up creating this tool. 
 
 At first, I don't want to store my backup in the cloud. For three main
-reasons: trust issues, bandwidth and internet access problems. Second, I would like to have a backup which can be read easily without the
-same backup tool I am using for creating it. I also would like to delete any one of the backups without disturbing the
+reasons: trust issues, bandwidth and internet access problems. Second, I would like to have a backup which can be read easily without the backup tool I am using for creating it. I also would like to delete any one of the backups without disturbing the
 others. The last two requirement points toward the hardlink based backups.
 
 I started to use [dirvish](https://dirvish.org/) and I used it for years. Lately I switched to [Back In Time](https://github.com/bit-team/backintime) which is very similar to dirvish.
@@ -16,7 +15,7 @@ I started to use [dirvish](https://dirvish.org/) and I used it for years. Lately
 Both packages based on rsync which makes them rather slow. In my daily
 machine, I have 3TB storage at the moment, and the average backup takes
 several hours even if almost nothing changes. The result is skipping backups
-and spending even more time on them. The last time I used Back In Time, it
+and spending even more time on them later. The last time I used Back In Time, it
 took five hours to finish. Similar operation can be done in ~10% of that time with this tool.
 
 ## how it works
