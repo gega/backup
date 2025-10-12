@@ -1,22 +1,42 @@
 # backup
-local fast incremental backup for multiple targets
+Fast, local incremental backups that keep working even when your backup disk isn’t connected.
 
-## background
+## Overview
+Most backup systems assume the storage is always online. This one doesn’t.  
+`backup` tracks new and deleted files in the background, and when you eventually plug in one of your target drives, it instantly catches up.  
 
-Backup is a highly personal matter so this description will show my
-preferences and how I ended up creating this tool. 
+No cloud. No network. No waiting for a 5-hour rsync run just because one file changed.
 
-At first, I don't want to store my backup in the cloud. For three main
-reasons: trust issues, bandwidth and internet access problems. Second, I would like to have a backup which can be read easily without the backup tool I am using for creating it. I also would like to delete any one of the backups without disturbing the
-others. The last two requirement points toward the hardlink based backups.
+- 5–10× faster than rsync-based tools like Dirvish or Back In Time  
+- Hardlink-based, human-readable backups  
+- Works with multiple rotating drives  
+- Can start automatically via cron or udev  
+- Designed for multi-TB data sets  
 
-I started to use [dirvish](https://dirvish.org/) and I used it for years. Lately I switched to [Back In Time](https://github.com/bit-team/backintime) which is very similar to dirvish.
+---
 
-Both packages based on rsync which makes them rather slow. In my daily
-machine, I have 3TB storage at the moment, and the average backup takes
-several hours even if almost nothing changes. The result is skipping backups
-and spending even more time on them later. The last time I used Back In Time, it
-took five hours to finish. Similar operation can be done in ~10% of that time with this tool.
+## Background
+I built this after years of running rsync-based backups that took forever.  
+My daily machine has ~3 TB of data, and even a “small” incremental backup could take five hours.  
+When backups take that long, you skip them—and skipping backups eventually hurts.  
+
+Cloud options were out for me:
+- No trust in remote storage  
+- Unreliable bandwidth and access  
+- Desire to read backups directly, without any special restore tool  
+
+Hardlink-based backups are ideal for that, but traditional tools still crawl through the whole filesystem every time.  
+`backup` splits the process in two:
+1. **Delta generation** – runs locally and fast, detecting new and deleted files even when backup drives are absent.  
+2. **Backup execution** – when a target disk mounts, only changed files are copied and hardlinks updated.
+
+---
+
+## How it works
+There are three operations:
+- **generate delta** – collect file changes since the last run (no disk needed)  
+- **backup** – apply those deltas to the mounted target  
+- **initialize** – create the first full backup on a new target
 
 ## how it works
 
